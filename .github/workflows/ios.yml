@@ -1,0 +1,84 @@
+name: iOS build & test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode version
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Install tools
+        run: |
+          brew install ninja xcodegen xcbeautify
+          command -v cmake || brew install cmake
+
+      - name: Cache OpenSSL / FreeRDP
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/openssl/iphoneos
+            build/openssl/iphonesimulator
+            Vendor
+          key: libs-${{ runner.os }}-${{ hashFiles('scripts/build-openssl.sh', 'scripts/build-freerdp.sh') }}
+
+      - name: Build OpenSSL
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: scripts/ci-run.sh openssl.log ./scripts/build-openssl.sh
+
+      - name: Build FreeRDP
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: scripts/ci-run.sh freerdp.log ./scripts/build-freerdp.sh
+
+      - name: Generate Xcode project
+        run: xcodegen
+
+      - name: Build app and tests
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project DeskLink.xcodeproj -scheme DeskLink \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcodebuild-build.log | xcbeautify --renderer github-actions
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devs = json.load(sys.stdin)["devices"]
+          ipads = [d for rt, ds in devs.items() if "iOS" in rt for d in ds if d["name"].startswith("iPad")]
+          print(ipads[-1]["udid"] if ipads else "")')
+          echo "Simulator: $UDID"
+          test -n "$UDID"
+          xcodebuild test-without-building \
+            -project DeskLink.xcodeproj -scheme DeskLink \
+            -destination "id=$UDID" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee xcodebuild-test.log | xcbeautify --renderer github-actions
+
+      - name: Report xcodebuild errors
+        if: failure()
+        run: |
+          for f in xcodebuild-build.log xcodebuild-test.log; do
+            [ -f "$f" ] || continue
+            grep -E "error:|Undefined symbol|ld: |failed" "$f" | head -n 80 > errors.txt || true
+            [ -s errors.txt ] && scripts/ci-annotate.sh "$f" errors.txt
+          done
+          true

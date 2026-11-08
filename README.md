@@ -1,5 +1,7 @@
 # DeskLink — iPad 用リモートデスクトップクライアント
 
+[![iOS build & test](https://github.com/Oshabery/WinPlayer/actions/workflows/ios.yml/badge.svg)](https://github.com/Oshabery/WinPlayer/actions/workflows/ios.yml)
+
 iPad から Windows PC（またはクラウド上の Windows）に **RDP（リモートデスクトップ プロトコル）** で接続し、
 タッチ・トラックパッド・キーボードで操作するアプリです。
 
@@ -34,36 +36,34 @@ iPad から Windows PC（またはクラウド上の Windows）に **RDP（リ�
 
 ## ビルド手順（Mac）
 
-```bash
-brew install cmake ninja xcodegen
-```
+Xcode を App Store からインストールして一度起動したら、あとは次の1コマンドで準備が終わります。
+Homebrew とビルドツールの導入、OpenSSL 3.3.2 / FreeRDP 3.10.3 のビルド（初回 10〜20 分）、Xcode プロジェクトの生成まで自動で行い、最後に Xcode を開きます。
 
 ```bash
-./scripts/build-openssl.sh
+./scripts/setup-mac.sh
 ```
+
+シミュレーターでの単体テストまで行う場合:
 
 ```bash
-./scripts/build-freerdp.sh
+./scripts/setup-mac.sh --test
 ```
+
+Bundle ID と署名チームも指定すると、Xcode での設定が不要になります（Team ID は Xcode > Settings > Accounts で確認）:
 
 ```bash
-xcodegen
+BUNDLE_ID=com.yourname.desklink DEVELOPMENT_TEAM=XXXXXXXXXX ./scripts/setup-mac.sh
 ```
 
-```bash
-open DeskLink.xcodeproj
-```
+Xcode が開いたら、実行先で iPad シミュレーターまたは USB 接続した iPad を選んで ▶︎ を押します。
+実機では iPad の「設定 > プライバシーとセキュリティ > デベロッパモード」をオンにし、初回起動時は「設定 > 一般 > VPNとデバイス管理」で開発元を信頼してください。
 
-1. `build-openssl.sh` が OpenSSL 3.3.2 を、`build-freerdp.sh` が FreeRDP 3.10.3 を iPad 実機（arm64）とシミュレーター（arm64）向けにビルドし、
-   `Vendor/include` と `Vendor/<sdk>/lib/libFreeRDPAll.a` を作ります（初回は 10〜20 分程度）。
-2. Xcode で Signing & Capabilities のチームを設定し、iPad またはシミュレーターで実行します。
-3. 単体テスト:
+ライブラリのバージョンは環境変数 `OPENSSL_VERSION` / `FREERDP_VERSION` / `MIN_IOS` で変更できます。
 
-```bash
-xcodebuild test -scheme DeskLink -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)'
-```
+### 自動ビルド（GitHub Actions）
 
-バージョンは環境変数 `OPENSSL_VERSION` / `FREERDP_VERSION` / `MIN_IOS` で変更できます。
+`main` への push とプルリクエストのたびに、`.github/workflows/ios.yml` が macOS 上でライブラリ・アプリをビルドし、iPad シミュレーターで単体テストを実行します。
+ビルド済みのライブラリはキャッシュされ、スクリプトを変えたときだけ作り直します。
 
 ## Windows 側の準備
 
