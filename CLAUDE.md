@@ -13,6 +13,7 @@ xcodegen                        # project.yml から DeskLink.xcodeproj を生�
 xcodebuild test -scheme DeskLink -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)'
 ```
 
+Mac での一括準備は `./scripts/setup-mac.sh [--test]`。CI は `.github/workflows/ios.yml`（macOS でライブラリ→アプリ→シミュレーターテスト。失敗内容は `scripts/ci-annotate.sh` でエラー注釈に出す）。
 `build/`、`Vendor/`、`*.xcodeproj/` は生成物なので .gitignore 済み。
 
 ## 構成
