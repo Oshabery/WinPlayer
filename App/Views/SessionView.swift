@@ -205,7 +205,7 @@ struct RemoteDesktopRepresentable: UIViewRepresentable {
             if wantsKeyboard, !view.isFirstResponder {
                 view.becomeFirstResponder()
             } else if !wantsKeyboard, view.isFirstResponder {
-                view.resignFirstResponder()
+                _ = view.resignFirstResponder()
             }
         }
     }
