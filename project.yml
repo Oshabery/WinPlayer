@@ -1,0 +1,68 @@
+name: DeskLink
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""   # Xcodeで自分のチームを選択してください
+
+targets:
+  DeskLink:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Bridge
+        excludes:
+          - "*.md"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.desklink
+        PRODUCT_NAME: DeskLink
+        TARGETED_DEVICE_FAMILY: "2"            # iPad専用
+        INFOPLIST_FILE: App/Resources/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: Bridge/DeskLink-Bridging-Header.h
+        GCC_C_LANGUAGE_STANDARD: gnu11
+        ENABLE_BITCODE: NO
+        # scripts/build-freerdp.sh が Vendor/ 以下に生成する
+        HEADER_SEARCH_PATHS: $(PROJECT_DIR)/Vendor/include
+        "LIBRARY_SEARCH_PATHS[sdk=iphoneos*]": $(PROJECT_DIR)/Vendor/iphoneos/lib
+        "LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]": $(PROJECT_DIR)/Vendor/iphonesimulator/lib
+        OTHER_LDFLAGS:
+          - -lFreeRDPAll
+          - -lz
+          - -liconv
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+    dependencies:
+      - sdk: Security.framework
+      - sdk: SystemConfiguration.framework
+      - sdk: CFNetwork.framework
+      - sdk: GameController.framework
+
+  DeskLinkTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: DeskLink
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/DeskLink.app/DeskLink
+        BUNDLE_LOADER: $(TEST_HOST)
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+
+schemes:
+  DeskLink:
+    build:
+      targets:
+        DeskLink: all
+        DeskLinkTests: [test]
+    test:
+      targets:
+        - DeskLinkTests
